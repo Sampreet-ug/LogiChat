@@ -1,0 +1,16 @@
+# Virtual environment
+chatbot_env/
+
+# ChromaDB storage
+chroma_db/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE settings
+.vscode/
+.idea/
+
+# Logs
+*.log

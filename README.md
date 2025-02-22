@@ -174,7 +174,7 @@ Contributions are welcome! To contribute:
 
 For questions, feedback, or collaborations, feel free to reach out at:
 
-- GitHub: [your-username](https://github.com/sampreet-ug)
+- GitHub: [Sampreet-ug](https://github.com/sampreet-ug)
 
 ---
 
