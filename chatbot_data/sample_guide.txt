@@ -1,0 +1,5 @@
+How to Restart the Server:
+
+1. Log in to the server using SSH.
+2. Run the following command: sudo systemctl restart server-name
+3. Verify the status using: sudo systemctl status server-name
