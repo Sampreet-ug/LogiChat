@@ -1,13 +1,23 @@
 import chromadb
-from chromadb.utils import embedding_functions
+from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
 import os
-import fitz  # For PDF extraction
+import fitz
 from PIL import Image
 import pytesseract
 
 # Initialize client and embedding function
-client = chromadb.Client()
-embed_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+client = chromadb.PersistentClient(path="chroma_db/")
+
+embed_fn = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+
+# Ensure collection exists
+try:
+    collection = client.get_collection(name="knowledge_base")
+except Exception as e:
+    print(f"Collection not found: {e}")
+    collection = client.create_collection(name="knowledge_base", embedding_function=embed_fn)
+    print("Created new knowledge_base collection.")
 
 # PDF extraction function
 def extract_text_from_pdf(file_path):
@@ -35,9 +45,15 @@ def load_documents(folder):
             documents.append(extract_text_from_image(filepath))
     return documents
 
+
 # Store embeddings in collection
 def store_embeddings():
-    collection = client.create_collection(name="knowledge_base", embedding_function=embed_fn)
+    # Recreate collection with embedding function applied
+    try:
+        collection = client.create_collection(name="knowledge_base", embedding_function=embed_fn)
+    except Exception as e:
+        print(f"Collection deletion failed: {e}")
+
     docs = load_documents("chatbot_data")
     for idx, doc in enumerate(docs):
         collection.add(
@@ -45,10 +61,46 @@ def store_embeddings():
             ids=[str(idx)]
         )
     print("Knowledge base indexed successfully.")
+    all_docs = collection.get()
+    print(f"Documents in collection: {all_docs['documents']}")
     return collection
+
+def store_documents_with_manual_embeddings():
+    documents = [
+        "IBM Sterling OMS is an order management system designed for enterprise-level solutions.",
+        "ChromaDB is a vector database optimized for AI and embedding-based searches.",
+        "Llama2 is a powerful open-source large language model developed for text generation."
+    ]
+
+    # Generate embeddings manually
+    embeddings = embed_fn(documents)
+    print("Generated Embeddings:", embeddings)  # Debug: Ensure embeddings are created
+
+    if embeddings is None or len(embeddings) == 0:
+        print("Embeddings not generated properly. Check embedding function.")
+        return
+
+    # Add documents with explicit embeddings
+    collection.add(
+        documents=documents,
+        embeddings=embeddings,
+        ids=[str(i) for i in range(len(documents))]
+    )
+    print("Documents successfully added with manual embeddings.")
 
 # Main execution
 if __name__ == "__main__":
-    collection = store_embeddings()
+    store_documents_with_manual_embeddings()
+    #collection = store_embeddings()
     print("Available collections:")
-    print(client.list_collections())
+    # Check if documents exist in the collection
+    for collection in client.list_collections():
+        print(collection.name)
+    
+    print(collection.count())  # Should return a non-zero value if data exists
+
+    
+    
+
+
+

@@ -1,6 +1,6 @@
 # Core Libraries
 chromadb==0.4.14                 # Vector database for embeddings
-sentence-transformers==2.2.2     # Generating text embeddings
+sentence-transformers==3.4.1     # Generating text embeddings
 ollama==0.1.6                    # Local LLM integration
 
 # PDF and Document Parsing
