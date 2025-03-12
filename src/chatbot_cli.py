@@ -34,7 +34,7 @@ def ask_ollama(prompt):
 # CLI Loop
 if __name__ == "__main__":
     print("Welcome to the Local AI Chatbot. Type 'exit' to quit.")
-    print(client.list_collections())
+    #print(client.list_collections())
     stored_docs = collection.get()
     print("Stored Data in Collection:", stored_docs)
     for collection in client.list_collections():

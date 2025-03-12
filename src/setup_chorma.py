@@ -29,6 +29,7 @@ def extract_text_from_pdf(file_path):
 
 # Image text extraction function
 def extract_text_from_image(file_path):
+    print(pytesseract.image_to_string(Image.open(file_path)))
     return pytesseract.image_to_string(Image.open(file_path))
 
 # Load documents from different file types
@@ -49,10 +50,7 @@ def load_documents(folder):
 # Store embeddings in collection
 def store_embeddings():
     # Recreate collection with embedding function applied
-    try:
-        collection = client.create_collection(name="knowledge_base", embedding_function=embed_fn)
-    except Exception as e:
-        print(f"Collection deletion failed: {e}")
+    
 
     docs = load_documents("chatbot_data")
     for idx, doc in enumerate(docs):
@@ -90,10 +88,10 @@ def store_documents_with_manual_embeddings():
 
 # Main execution
 if __name__ == "__main__":
-    store_documents_with_manual_embeddings()
-    #collection = store_embeddings()
-    print("Available collections:")
+    #store_documents_with_manual_embeddings()
+    store_embeddings()
     # Check if documents exist in the collection
+    print("Available collections:")
     for collection in client.list_collections():
         print(collection.name)
     
