@@ -4,6 +4,9 @@ chatbot_env/
 # ChromaDB storage
 chroma_db/
 
+#Chatbot knowledge base data
+chatbot_data
+
 # Python cache
 __pycache__/
 *.pyc
