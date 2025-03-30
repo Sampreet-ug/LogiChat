@@ -4,6 +4,9 @@ import chromadb
 from chromadb.utils import embedding_functions
 import subprocess
 import re
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lsa import LsaSummarizer
 
 # Initialize ChromaDB
 persist_dir = "./chroma_db"
@@ -33,19 +36,24 @@ def store_chat_memory(user_input, bot_response, chat_id):
     )
 
 def retrieve_chat_memory(user_input, chat_id, num_results=3):
-    """Retrieves only relevant past chat history."""
+    """Retrieve past chat history only if relevant to the user's input."""
     results = chat_history.query(query_texts=[user_input], n_results=num_results)
 
     past_chats = results.get("documents", [[]])[0]  
     metadatas = results.get("metadatas", [[]])[0]  
 
-    # Ensure only relevant history is included
-    relevant_chats = []
-    for i in range(len(past_chats)):
-        if isinstance(metadatas[i], dict) and "response" in metadatas[i]:
-            relevant_chats.append(f"User: {str(past_chats[i])}\nBot: {metadatas[i]['response']}")
+    if not past_chats or not metadatas:
+        return ""  
 
-    return "\n".join(relevant_chats) if relevant_chats else "No relevant chat history found."
+    formatted_history = "\n".join([
+        f"User: {str(past_chats[i])}\nBot: {metadatas[i].get('response', 'No response recorded')}" 
+        for i in range(len(past_chats))
+        if isinstance(metadatas[i], dict) and metadatas[i].get('response')
+    ])
+
+    # Only return history if there's a strong relevance
+    common_words = set(user_input.lower().split()) & set(formatted_history.lower().split())
+    return formatted_history if len(common_words) > 1 else ""
 
 
 def search_knowledge_base(query, threshold=0.7):
@@ -64,8 +72,14 @@ def search_knowledge_base(query, threshold=0.7):
 
 def ask_ollama(prompt):
     """Sends a query to Ollama's model."""
-    result = subprocess.run(["ollama", "run", "llama2"], input=prompt.encode(), capture_output=True)
-    return result.stdout.decode()
+    try:
+        result = subprocess.run(["ollama", "run", "llama2"], input=prompt.encode(), capture_output=True, timeout=30)
+        return result.stdout.decode().strip()
+    except subprocess.TimeoutExpired:
+        return "Error: Response took too long."
+    except Exception as e:
+        return f"Error: {e}"
+
 
 def is_url(text):
     url_pattern = re.compile(r"https?://\S+")
@@ -95,11 +109,16 @@ def fetch_clean_webpage(url):
 
 def summarize_text(text, num_sentences=5):
     """Uses TextRank (LSA) to extract key points."""
+    import nltk
+    try:
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:
+        nltk.download("punkt")
+
     parser = PlaintextParser.from_string(text, Tokenizer("english"))
     summarizer = LsaSummarizer()
     summary = summarizer(parser.document, num_sentences)
     return " ".join(str(sentence) for sentence in summary)
-
 
 # CLI Loop
 if __name__ == "__main__":
@@ -108,10 +127,11 @@ if __name__ == "__main__":
     chat_id = "user123"  # This can be session-based or user-specific and could be set based on the authentication(to be implemented).
 
     while True:
-        user_input = input("You: ")
-        if user_input.lower() == 'exit':
+        user_input = input("\nYou: ").strip()
+        if user_input.lower() == "exit":
+            print("Goodbye!")
             break
-        
+
         if is_url(user_input):
             print("Fetching content from the URL...")
             webpage_text = fetch_clean_webpage(user_input)
@@ -121,29 +141,26 @@ if __name__ == "__main__":
 
             combined_prompt = f"Summarize the following content:\n\n{webpage_text}\n\n"
             response = ask_ollama(combined_prompt)
+
         else:
             kb_response = search_knowledge_base(user_input)
+            past_chats = retrieve_chat_memory(user_input, chat_id)
 
-            if kb_response:  
-                # If KB has a relevant answer, prioritize it
-                combined_prompt = (
-                    f"You are an AI assistant. Answer using only the following knowledge base information:\n\n"
-                    f"{kb_response}\n\n"
-                    f"If this information does not answer the question, say 'I don't know'."
-                )
-            else:
-                past_chats = retrieve_chat_memory(user_input, chat_id)
-                
-                if past_chats and "No relevant chat history found." not in past_chats:
-                    # Use past conversations only if they are relevant
-                    combined_prompt = (
-                        f"You are an AI assistant. Here is past chat history:\n\n"
-                        f"{past_chats}\n\n"
-                        f"Use this to guide your response, but only if relevant."
-                    )
-                else:
-                    # If no relevant KB or past chat, use general LLM
-                    combined_prompt = f"You are an AI assistant. Answer the following question:\n\nUser: {user_input}\nBot:"
+            # Construct the prompt dynamically
+            context = []
+            if kb_response:
+                context.append(f"Knowledge Base Context:\n{kb_response}\n")
+            if past_chats:
+                context.append(f"Past Conversations:\n{past_chats}\n")
+
+            context_text = "\n".join(context) if context else "No prior context available."
+
+            combined_prompt = (
+                f"You are an AI assistant with access to relevant knowledge and past interactions.\n\n"
+                f"{context_text}\n"
+                f"User Question: {user_input}\n"
+                "Provide a clear and concise response."
+            )
 
             response = ask_ollama(combined_prompt)
 
