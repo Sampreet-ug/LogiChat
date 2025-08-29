@@ -5,6 +5,19 @@
 
 ---
 
+## ⚠️ Prerequisites
+
+Before installing, ensure you have the following:
+
+- **Python 3.7 or higher** installed on your system. You can download it from [python.org](https://www.python.org/downloads/).
+- **Tesseract OCR** installed and added to your system PATH.  
+  - For Windows, download the installer from [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki).
+  - For macOS, install via Homebrew: `brew install tesseract`.
+  - For Linux, install via your package manager, e.g., `sudo apt-get install tesseract-ocr`.
+- **pip** for installing Python packages.
+
+---
+
 ## 🚀 Features
 
 - 🔒 **Offline Operation**: Works entirely on your local machine—no internet connection needed.
